@@ -1,6 +1,8 @@
 package clu
 
-import "os"
+import (
+	"strings"
+)
 
 // Lexing
 // Check first rune
@@ -18,81 +20,112 @@ import "os"
 //		if 'name' is a Var then continue to next arg as-var
 //		else log error
 
-const ( // lex states
-	lstPre = iota // Check for first rune
-	lstPre2 // second rune check for '-'
-	lstName // read the name
-	lstValue // read the value
-)
+type lexState func(*lexer, string) lexState
 
-// A string that no one should ever want to use as a value
-const nilValue = "NIL_STRING_IFSOMEONEUSESTHISASANAGRICANTHELPTHEM"
+type lexer struct {
+	state lexState
+	out chan string
+	item string
+	raw []string
+}
 
-// lexes an arge and returns it's parts
-// returns name and value string
-// will ALWAYS return name only returns value if using '=' notation
-func lexArg(arg string) (name, value string){
-// This is the long hand way, I dont really care for it much right now but it will do.
-	state := lstPre
-	name = ""
-	value = nilValue // This is to let the arg parser that a value wasn't read
+// ranges over raw data and runs it though the lexer
+func (l *lexer) run() {
+	for _, e := range l.raw {
+		l.state = l.state(l, e)
+	}
 
-	for _, e := range arg {
-		switch(state) {
-		case lstPre:
-			if e == '/' {
-				state = lstName
-			} else if e == '-' {
-				state = lstPre2
-			} else { // This is a loosie
-				name = arg
-				return // we're done here
-			}
-		case lstPre2:
-			if e != '-' { // if we only have one '-' we need to add the current rune to the name
-				name += string(e)
-			}
-			state = lstName
-		case lstName:
-			if e == '=' {
-				value = "" // set the value to empty so we can fill it properly
-				state = lstValue
-			} else {
-				name += string(e)
-			}
-		case lstValue:
-			value += string(e)
+	close(l.out)
+}
 
+// pushes the currect saved item and resets
+func (l *lexer) putItem() {
+	l.out <- l.item
+	l.item = ""
+}
+
+// pushes over the out channel
+func (l *lexer) put(s string) {
+	l.out <- s
+}
+
+// standard arg lexing
+func lstArg(l *lexer, s string) lexState {
+	offset := 0
+
+	// Test for prefixs
+	if strings.HasPrefix(s, "-") || strings.HasPrefix(s, "/") {
+		offset = 1
+		if strings.HasPrefix(s, "--") {
+			offset = 2
 		}
 	}
 
-	return
+	// Split on '=' to test for value setting
+	sp := strings.Split(s[offset:], "=")
+	offset = 0
+	if len(sp) > 1 {
+		l.put(sp[0])
+		offset = 1
+	}
+
+	i := sp[offset]
+	
+	// Are starting a quoted section?
+	if strings.HasPrefix(i, "'") {
+		if strings.HasSuffix(i, "'") {
+			i = strings.Trim(i, "'")
+		} else {
+			l.item = strings.Trim(i, "'")
+			return lstInQuote
+		}
+	}
+
+	l.put(i)
+	return lstArg
 }
 
-// TODO: fillout iArgs with needed helper-func
+// We keep adding to item until we find an end quote
+func lstInQuote(l *lexer, s string) lexState {
+
+	l.item = strings.Join([]string{l.item, strings.Trim(s, "'")}, " ")
+
+	if strings.HasSuffix(s, "'") {
+		l.putItem()
+		return lstArg
+	}
+
+	return lstInQuote
+}
+
+// Make and run the lexer, passing back the arg stream
+func lex(in []string) (chan string) {
+	l := &lexer {
+		state: lstArg,
+		out: make(chan string, 3),
+		item: "",
+		raw: in,
+	}
+
+	go l.run()
+
+	return l.out
+}
+
 // TODO: Add error checking logic!
-func parseCMD(a *iArgs) {
-	args := os.Args[1:] // Grab all the args after the app name
+func parser(a *iArgs, in chan string) {
+	for arg := range in {
 
-	varName := ""
-
-	for _, e := range args {
-		name, value := lexArg(e)
-
-		if a.putFlag(name) {
+		if a.putFlag(arg) {
 			continue
-		} else if varName != "" {
-			a.putVar(varName, name)
-			varName = ""
-		} else if a.isVar(name) {
-			if value != nilValue {
-				a.putVar(name, value)
+		} else if a.isVar(arg) {
+			if v, ok := <-in; ok {
+				a.putVar(arg, v)			 
 			} else {
-				varName = name;
-				continue
+				return
 			}
 		} else {
-			a.putLoosie(name)
+			a.putLoosie(arg)
 		}
 	}
 }

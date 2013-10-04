@@ -6,23 +6,31 @@ import (
 
 func TestLexing(t *testing.T) {
 	tests := []string{
-		"/help", "/h", "/?", "--h", "-h", "-var=10", "--really_long_flag=this_is_just_getting_out_of_hand", "/Ddeveloper=true"
+		"/help", "/h", "/?", "--h", "-h", "-var=10", "--really_long_flag=this_is_just_getting_out_of_hand", 
+		"/Ddeveloper=true", `/poopie='this is in quotes'`,
 	}
 
 	units := []string{
-		"help", nilValue, "h", nilValue, "?", nilValue, "h", nilValue, "h", nilValue, "var", "10", "really_long_flag", "this_is_just_getting_out_of_hand",
+		"help", "h", "?", "h", "h", "var", "10", "really_long_flag", "this_is_just_getting_out_of_hand",
+		"Ddeveloper", "true", "poopie", "this is in quotes",
 	}
 
-	for it, iu := 0, 0; it < len(tests); it++ {
-		n, v := lexArg(tests[it])
-		if n != units[iu] || v != units[iu+1] {
-			t.Error("Failed test", it, "\nExp:", units[iu], units[iu+1], "\nGot:", n, v)
+	out := lex(tests)
+
+	i := 0
+	for arg := range out {
+		if arg != units[i] {
+			t.Error("Failed test", i, "\nExp:", units[i], "\nGot:", arg)
 		}
-		iu += 2
+		i++
+	}
+
+	if i < len(units) {
+		t.Error("Lexer chan closed before we go though all tests. Got to", i, "out of", len(units))
 	}
 }
 
-func testAppInit(a *ArgSet) {
+func testAppInit(a ArgSet) {
 	a.SetFlag("verbose", "v", "turns on verbose logging")
 	a.SetFlag("debug", "d", "adds debug hooks")
 
@@ -33,9 +41,15 @@ func testAppInit(a *ArgSet) {
 	a.SetVar("list_name", "name", "default", "list to apply to")
 }
 
+// TODO: Add more robust testing
 func TestParsing(t *testing.T) {
 	a := newArgs()
 	testAppInit(a)
-	// TODO: Testing stuff here, idk
-	parseCMD(a, )
+	parser(a, lex([]string{"'first note'"}))
+	if a.LenLoose() != 1 {
+		t.Error("Loosie length incorrect Exp:", 1, "Got:", a.LenLoose())
+	} else if a.Loosie(0) != "first note" {
+		t.Error("Loosie detection failed Exp: first note Got:", a.Loosie(0))
+	}
+
 }
