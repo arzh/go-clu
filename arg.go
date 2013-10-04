@@ -21,7 +21,7 @@ type Args interface {
 	Flag(string) bool
 
 	LenLoose() int
-	Loosie(int) string
+	Loosie(uint) string
 }
 
 // Internal implementation of Args interface
@@ -88,7 +88,7 @@ func (a *iArgs) VarFloat(s string) (float64, error) {
 }
 
 // Get Var as time.Duration
-func (a *iArgs) VarDuriation(s string) (time.Duration, error) {
+func (a *iArgs) VarDuration(s string) (time.Duration, error) {
 	return time.ParseDuration(a.Var(s))
 }
 
@@ -125,4 +125,40 @@ func (a *iArgs) Loosie(i uint) string {
 	}
 
 	return a.loosies[i]
+}
+
+// Tries to set a flag,
+// if the given flag is not present in the map return false
+func (a *iArgs) putFlag(s string) bool {
+	fp, ok := a.flags[s]
+	
+	if ok {
+		(*fp) = true;
+	}
+
+	return ok
+}
+
+func (a *iArgs) isVar(s string) bool {
+	_, ok := a.values[s]
+	return ok
+}
+
+// Tries to set a value
+// If value isn't present then return false
+func (a *iArgs) putVar(s, v string) bool {
+	vp, ok := a.values[s]
+
+	if ok {
+		(*vp) = v
+	}
+
+	return ok
+}
+
+// Adds a loosie to the list,
+// returns true to maintain a bit of consistancy between all the 'puts'
+func (a *iArgs) putLoosie(l string) bool {
+	a.loosies = append(a.loosies, l)
+	return true
 }

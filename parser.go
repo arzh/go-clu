@@ -74,23 +74,25 @@ func lexArg(arg string) (name, value string){
 func parseCMD(a *iArgs) {
 	args := os.Args[1:] // Grab all the args after the app name
 
+	varName := ""
+
 	for _, e := range args {
 		name, value := lexArg(e)
 
 		if a.putFlag(name) {
 			continue
 		} else if varName != "" {
-			a.putValue(varName, name)
+			a.putVar(varName, name)
 			varName = ""
-		} else if a.isValue(name) {
+		} else if a.isVar(name) {
 			if value != nilValue {
-				a.putValue(name, value)
+				a.putVar(name, value)
 			} else {
 				varName = name;
 				continue
 			}
 		} else {
-			a.putLoose(name)
+			a.putLoosie(name)
 		}
 	}
 }
