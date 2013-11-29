@@ -22,9 +22,10 @@ type Args interface {
 
 	LenLoose() int
 	Loosie(uint) string
+	Loosies() []string
 }
 
-// Internal implementation of Args interface
+// Internal implementation of Args and ArgSet interface
 type iArgs struct {
 	values map[string]*string
 	flags map[string]*bool
@@ -127,11 +128,16 @@ func (a *iArgs) Loosie(i uint) string {
 	return a.loosies[i]
 }
 
+// Returns all loosies
+func (a *iArgs) Loosies() []string {
+	return a.loosies
+}
+
 // Tries to set a flag,
 // if the given flag is not present in the map return false
 func (a *iArgs) putFlag(s string) bool {
 	fp, ok := a.flags[s]
-	
+
 	if ok {
 		(*fp) = true;
 	}
