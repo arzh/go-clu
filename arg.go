@@ -6,67 +6,53 @@ import (
 )
 
 // Interface for setting Args, exposed to the initlization function
-type ArgSet interface {
-	SetFlag(string, string, string)
-	SetVar(string, string, string, string)
-}
-
-// Interface for getting command line arguments
-type Args interface {
-	Var(string) string
-	VarInt(string) (int64, error)
-	VarFloat(string) (float64, error)
-	VarDuration(string) (time.Duration, error)
-
-	Flag(string) bool
-
-	LenLoose() int
-	Loosie(uint) string
-	Loosies() []string
+type ArgConf interface {
+	AddFlag(string, string, string)
+	AddVar(string, string, string, string)
 }
 
 // Internal implementation of Args and ArgSet interface
-type iArgs struct {
+type Args struct {
 	values map[string]*string
 	flags map[string]*bool
 	help map[string]*string
 	loosies []string
 }
 
-// Creates an initilized iArgs pointer
-func newArgs() *iArgs {
-	a := new(iArgs)
+// Creates an initilized Args pointer
+func newArgs() *Args {
+	args := new(Args)
 
-	a.values = make(map[string]*string)
-	a.flags = make(map[string]*bool)
-	a.help = make(map[string]*string)
-	a.loosies = make([]string, 0)
+	args.values = make(map[string]*string)
+	args.flags = make(map[string]*bool)
+	args.help = make(map[string]*string)
+	args.loosies = make([]string, 0)
 
-	return a
+	return args
 }
 
 // helper to add to the 'help' section
-func (a *iArgs) addHelp(name, shortcut, usage string) {
+func (args *Args) addHelp(name, shortcut, usage string) {
 	h := new(string)
 	(*h) = usage
-	a.help[name] = h
-	a.help[shortcut] = h
+	args.help[name] = h
+	args.help[shortcut] = h
 }
 
-// Create a new Var to track
-func (a *iArgs) SetVar(name, shortcut, dvalue, usage string) {
+// Create args new Var to track
+func (args *Args) AddVar(name, shortcut, dvalue, usage string) {
 	s := new(string)
 	(*s) = dvalue
-	a.values[name] = s
-	a.values[shortcut] = s
+	args.values[name] = s
+	args.values[shortcut] = s
 
-	a.addHelp(name, shortcut, usage)
+	args.addHelp(name, shortcut, usage)
 }
 
 // Get Var
 // return empty string if not found
-func (a *iArgs) Var(s string) string {
-	if sp, ok := a.values[s]; ok {
+func (args *Args) Var(s string) string {
+	if sp, ok := args.values[s]; ok {
 		return (*sp)
 	}
 
@@ -74,39 +60,39 @@ func (a *iArgs) Var(s string) string {
 }
 
 // Get Var as int64
-func (a *iArgs) VarInt(s string) (int64, error) {
-	return strconv.ParseInt(a.Var(s), 10, 64)
+func (args *Args) VarInt(s string) (int64, error) {
+	return strconv.ParseInt(args.Var(s), 10, 64)
 }
 
 // Get Var as uint64 (currently not exposed)
-func (a *iArgs) VarUInt(s string) (uint64, error) {
-	return strconv.ParseUint(a.Var(s), 10, 64)
+func (args *Args) VarUInt(s string) (uint64, error) {
+	return strconv.ParseUint(args.Var(s), 10, 64)
 }
 
 // Get Var as float64
-func (a *iArgs) VarFloat(s string) (float64, error) {
-	return strconv.ParseFloat(a.Var(s), 64)
+func (args *Args) VarFloat(s string) (float64, error) {
+	return strconv.ParseFloat(args.Var(s), 64)
 }
 
 // Get Var as time.Duration
-func (a *iArgs) VarDuration(s string) (time.Duration, error) {
-	return time.ParseDuration(a.Var(s))
+func (args *Args) VarDuration(s string) (time.Duration, error) {
+	return time.ParseDuration(args.Var(s))
 }
 
-// Create a new Flag to track
-func (a *iArgs) SetFlag(name, shortcut, usage string) {
+// Create args new Flag to track
+func (args *Args) AddFlag(name, shortcut, usage string) {
 	f := new(bool)
 	(*f) = false
-	a.flags[name] = f
-	a.flags[shortcut] = f
+	args.flags[name] = f
+	args.flags[shortcut] = f
 
-	a.addHelp(name, shortcut, usage)
+	args.addHelp(name, shortcut, usage)
 }
 
 // Get Flag
 // return false if not found
-func (a *iArgs) Flag(s string) bool {
-	if bp, ok := a.flags[s]; ok {
+func (args *Args) Flag(s string) bool {
+	if bp, ok := args.flags[s]; ok {
 		return (*bp)
 	}
 
@@ -114,29 +100,29 @@ func (a *iArgs) Flag(s string) bool {
 }
 
 // Get the number of loosies
-func (a *iArgs) LenLoose() int {
-	return len(a.loosies)
+func (args *Args) LenLoose() int {
+	return len(args.loosies)
 }
 
 // Get loosie at an index
 // return empty string if invalid index
-func (a *iArgs) Loosie(i uint) string {
-	if i >= uint(len(a.loosies)) {
+func (args *Args) Loosie(i uint) string {
+	if i >= uint(len(args.loosies)) {
 		return ""
 	}
 
-	return a.loosies[i]
+	return args.loosies[i]
 }
 
 // Returns all loosies
-func (a *iArgs) Loosies() []string {
-	return a.loosies
+func (args *Args) Loosies() []string {
+	return args.loosies
 }
 
-// Tries to set a flag,
+// Tries to set args flag,
 // if the given flag is not present in the map return false
-func (a *iArgs) putFlag(s string) bool {
-	fp, ok := a.flags[s]
+func (args *Args) putFlag(s string) bool {
+	fp, ok := args.flags[s]
 
 	if ok {
 		(*fp) = true;
@@ -145,15 +131,15 @@ func (a *iArgs) putFlag(s string) bool {
 	return ok
 }
 
-func (a *iArgs) isVar(s string) bool {
-	_, ok := a.values[s]
+func (args *Args) isVar(s string) bool {
+	_, ok := args.values[s]
 	return ok
 }
 
-// Tries to set a value
+// Tries to set args value
 // If value isn't present then return false
-func (a *iArgs) putVar(s, v string) bool {
-	vp, ok := a.values[s]
+func (args *Args) putVar(s, v string) bool {
+	vp, ok := args.values[s]
 
 	if ok {
 		(*vp) = v
@@ -162,9 +148,9 @@ func (a *iArgs) putVar(s, v string) bool {
 	return ok
 }
 
-// Adds a loosie to the list,
-// returns true to maintain a bit of consistancy between all the 'puts'
-func (a *iArgs) putLoosie(l string) bool {
-	a.loosies = append(a.loosies, l)
+// Adds args loosie to the list,
+// returns true to maintain args bit of consistancy between all the 'puts'
+func (args *Args) putLoosie(l string) bool {
+	args.loosies = append(args.loosies, l)
 	return true
 }

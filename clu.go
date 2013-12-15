@@ -1,23 +1,37 @@
 package clu
 
-import "os"
+import (
+	"os"
+	"fmt"
+)
 
-// Function typedef of the initilizer function
+// Function typedef of the initializer function
 // 	User will need to provide this function to set
 // 	up any flags or values to be parsed
-type SetupFunc func(ArgSet)
+type ArgInitializer func(ArgConf)
+type AppInitializer func(AppConf)
 
 // Parses the command line arguments and fills out an Args 
-// based on the initilization from User
-func Parse(init SetupFunc) Args {
+// based on the initialization from User
+func Parse(init ArgInitializer) Args {
 	// Set it all up
-	a := newArgs()
-	init(a)
+	args := newArgs()
+	init(args)
 
-	// Parse all args after the name of the app
-	parser(a, lex(os.Args[1:])) // Grab all the args after the app name
+	parser(args, lex(os.Args[1:])) // Grab all the args after the exe name
 
-	return a
+	return *args
+}
+
+func Run(init AppInitializer) {
+	app := newApp()
+	init(app)
+
+	parser(&app.Args, lex(os.Args[1:]))
+
+	if err := app.Run(); err != nil {
+		fmt.Println(err.Error())
+	}
 }
 
 

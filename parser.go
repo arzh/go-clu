@@ -113,7 +113,7 @@ func lex(in []string) (chan string) {
 }
 
 // TODO: Add error checking logic!
-func parser(a *iArgs, in chan string) {
+func parser(a *Args, in chan string) {
 	for arg := range in {
 
 		if a.putFlag(arg) {

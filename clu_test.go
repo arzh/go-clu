@@ -30,21 +30,21 @@ func TestLexing(t *testing.T) {
 	}
 }
 
-func testAppInit(a ArgSet) {
-	a.SetFlag("verbose", "v", "turns on verbose logging")
-	a.SetFlag("debug", "d", "adds debug hooks")
+func testArgInit(a ArgConf) {
+	a.AddFlag("verbose", "v", "turns on verbose logging")
+	a.AddFlag("debug", "d", "adds debug hooks")
 
-	a.SetFlag("mark", "x", "mark todo item as done")
-	a.SetFlag("update", "u", "updates todo item")
-	a.SetFlag("last_updated", "lu", "changes ordering")
+	a.AddFlag("mark", "x", "mark todo item as done")
+	a.AddFlag("update", "u", "updates todo item")
+	a.AddFlag("last_updated", "lu", "changes ordering")
 
-	a.SetVar("list_name", "name", "default", "list to apply to")
+	a.AddVar("list_name", "name", "default", "list to apply to")
 }
 
 // TODO: Add more robust testing
 func TestParsing(t *testing.T) {
 	a := newArgs()
-	testAppInit(a)
+	testArgInit(a)
 	parser(a, lex([]string{"'first note'"}))
 	if a.LenLoose() != 1 {
 		t.Error("Loosie length incorrect Exp:", 1, "Got:", a.LenLoose())
@@ -52,4 +52,82 @@ func TestParsing(t *testing.T) {
 		t.Error("Loosie detection failed Exp: first note Got:", a.Loosie(0))
 	}
 
+}
+
+var appTestRunner int
+const (
+	firstRun = 100
+	secondRun = 1000
+	thirdRun = 10000
+)
+
+func firstTest(args Args) {
+	appTestRunner = firstRun;
+}
+
+func testApp1Init(a AppConf) {
+	a.AddCmd("test", firstTest)
+}
+
+func secondTest(args Args) {
+	if args.Flag("verbose") {
+		appTestRunner = secondRun;
+		return
+	}
+	appTestRunner = 0
+}
+
+func testApp2Init(a AppConf) {
+	a.AddFlag("verbose", "v", "verbose flag")
+	a.AddCmd("test2", secondTest)
+}
+
+func thirdTest(args Args) {
+	if args.Loosie(0) == "run" {
+		appTestRunner = thirdRun
+		return
+	}
+	appTestRunner = 0
+}
+
+func testApp3Init(a AppConf) {
+	a.AddCmd("test3", thirdTest)
+}
+
+func TestApp(t *testing.T) {
+	t1 := []string{"test"}
+	t2 := []string{"test2", "-v"}
+	t3 := []string{"test3", "run"}
+
+	appTestRunner = 0;
+	a1 := newApp()
+	testApp1Init(a1)
+	parser(&a1.Args, lex(t1))
+	a1.Run()
+
+	if appTestRunner != firstRun {
+		t.Error("First Test failed");
+	}
+
+
+	appTestRunner = 0;
+	a2 := newApp()
+	testApp2Init(a2)
+	parser(&a2.Args, lex(t2))
+	a2.Run()
+
+	if appTestRunner != secondRun {
+		t.Error("Second Test failed");
+	}
+
+
+	appTestRunner = 0;
+	a3 := newApp()
+	testApp3Init(a3)
+	parser(&a3.Args, lex(t3))
+	a3.Run()
+
+	if appTestRunner != thirdRun {
+		t.Error("Third Test failed");
+	}
 }
